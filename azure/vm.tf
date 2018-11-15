@@ -1,34 +1,3 @@
-resource "azurerm_virtual_network" "mynet"
-{
-  name="table5ravnet"
-  address_space=["10.0.0.0/16"]
-  location="${var.location}"
-  resource_group_name="${azurerm_resource_group.thegroup.name}"
-  tags {
-    environment="Testing"
-  }
-}
-
-resource "azurerm_subnet" "mysub"
-{
-  name="vm"
-  resource_group_name="${azurerm_resource_group.thegroup.name}"
-  virtual_network_name="${azurerm_virtual_network.mynet.name}"
-  address_prefix="10.0.1.0/24"
-}
-
-
-resource "azurerm_public_ip" "myip"
-{
-  name="table5ratfvmip"
-  location="${var.location}"
-  resource_group_name="${azurerm_resource_group.thegroup.name}"
-  public_ip_address_allocation="dynamic"
-  tags{
-    environment="testing"
-  }
-}
-
 resource "azurerm_network_interface" "mynic"
 {
   name="table5ratfvmnic"
@@ -38,11 +7,33 @@ resource "azurerm_network_interface" "mynic"
     name="ipconfig1"
     subnet_id="${azurerm_subnet.mysub.id}"
     private_ip_address_allocation="dynamic"
+    public_ip_address_id="${azurerm_public_ip.myip.id}"
   }
   tags {
     environment="testing"
   }
 }
+
+resource "random_id" "randomid"
+{
+  keepers = {
+    resource_group="${azurerm_resource_group.thegroup.name}"
+  }
+  byte_length=8
+}
+
+resource "azurerm_storage_account" "mystorage"
+{
+  name="diag${random_id.randomid.hex}"
+  location="${var.location}"
+  resource_group_name="${azurerm_resource_group.thegroup.name}"
+  account_tier="Standard"
+  account_replication_type="LRS"
+  tags {
+    environment="testing"
+  }
+}
+
 
 resource "azurerm_virtual_machine" "myvm"
 {
@@ -69,15 +60,44 @@ resource "azurerm_virtual_machine" "myvm"
   os_profile {
     computer_name="table5ravm"
     admin_username="azureops"
-    admin_password="Password1234!!!"
   }
 
   os_profile_linux_config {
-    disable_password_authentication = false
+    disable_password_authentication = true
+    ssh_keys {
+      path="/home/azureops/.ssh/authorized_keys"
+      key_data="${file("~/.ssh/id_rsa.pub")}"
+    }
+  }
+
+  boot_diagnostics {
+    enabled="true"
+    storage_uri="${azurerm_storage_account.mystorage.primary_blob_endpoint}"
   }
 
   tags {
     environment = "testing"
   }
+  
+  provisioner "file" {
+    source="/home/azureops/terraform/azure/thegraph.svg"
+    destination="./thegraph.svg"
+    connection {
+      type="ssh"
+      user="azureops"
+    }
+  }
 }
 
+resource "null_resource" "upload"
+{
+    provisioner "file" {
+    source="/home/azureops/terraform/azure/thegraph.svg"
+    destination="./thegraph.svg"
+    connection {
+      host="${azurerm_public_ip.myip.ip_address}"
+      type="ssh"
+      user="azureops"
+    }
+  }
+}
