@@ -66,7 +66,7 @@ resource "azurerm_virtual_machine" "myvm"
     disable_password_authentication = true
     ssh_keys {
       path="/home/azureops/.ssh/authorized_keys"
-      key_data="${file("~/.ssh/id_rsa.pub")}"
+      key_data="${file("/ssh/id_rsa.pub")}"
     }
   }
 
@@ -79,25 +79,5 @@ resource "azurerm_virtual_machine" "myvm"
     environment = "testing"
   }
   
-  provisioner "file" {
-    source="/home/azureops/terraform/azure/thegraph.svg"
-    destination="./thegraph.svg"
-    connection {
-      type="ssh"
-      user="azureops"
-    }
-  }
 }
 
-resource "null_resource" "upload"
-{
-    provisioner "file" {
-    source="/home/azureops/terraform/azure/thegraph.svg"
-    destination="./thegraph.svg"
-    connection {
-      host="${azurerm_public_ip.myip.ip_address}"
-      type="ssh"
-      user="azureops"
-    }
-  }
-}
