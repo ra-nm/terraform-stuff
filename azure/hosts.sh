@@ -1,6 +1,6 @@
 #!/bin/sh
 
-vm_ip=$(terraform output vm_ip)
+vm_ip=$(terraform output vm_ip -state=/ssh/terraform.tfstate)
 echo $vm_ip
 echo "host1 ansible_user=azureops ansible_ssh_host="$vm_ip > /ssh/inventory
 echo "" >> /ssh/inventory
